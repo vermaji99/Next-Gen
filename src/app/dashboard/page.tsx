@@ -13,17 +13,58 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { AlertCircle, Database, Terminal } from "lucide-react";
 
 async function getCourses(): Promise<{ data: Course[]; error: any }> {
-  const supabase = await createClient();
-  
-  const { data, error } = await supabase
-    .from("courses")
-    .select("*")
-    .order("created_at", { ascending: false });
+  try {
+    const isEnvConfigured = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && 
+                             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    
+    if (!isEnvConfigured) {
+      return { data: [], error: 'Missing environment variables' };
+    }
 
-  return { data: (data as Course[]) || [], error };
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from("courses")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    return { data: (data as Course[]) || [], error };
+  } catch (err) {
+    console.error("Critical error in getCourses:", err);
+    return { data: [], error: err };
+  }
 }
 
 export default async function DashboardPage() {
+  const isEnvConfigured = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && 
+                           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+
+  if (!isEnvConfigured) {
+    return (
+      <DashboardShell>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6">
+            <AlertCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2 text-white">Missing Credentials</h2>
+          <p className="text-zinc-400 max-w-md mb-8">
+            You are seeing this error because the Supabase environment variables are not set in your Vercel project settings.
+          </p>
+          <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6 text-left w-full max-w-lg">
+            <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">How to fix:</h4>
+            <ol className="list-decimal list-inside space-y-3 text-sm text-zinc-400">
+              <li>Go to your <span className="text-blue-400">Vercel Dashboard</span></li>
+              <li>Settings &gt; Environment Variables</li>
+              <li>Add <code className="text-blue-300">NEXT_PUBLIC_SUPABASE_URL</code></li>
+              <li>Add <code className="text-blue-300">NEXT_PUBLIC_SUPABASE_ANON_KEY</code></li>
+              <li>Redeploy your project</li>
+            </ol>
+          </div>
+        </div>
+      </DashboardShell>
+    );
+  }
+
   const { data: courses, error } = await getCourses();
   
   const isTableMissing = error?.code === 'PGRST205';
